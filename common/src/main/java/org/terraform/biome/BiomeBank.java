@@ -5,7 +5,7 @@ import java.util.Collections;
 import java.util.Random;
 
 import org.terraform.biome.beach.*;
-import org.terraform.biome.cave.*;
+import org.terraform.biome.cavepopulators.*;
 import org.terraform.biome.flat.*;
 import org.terraform.biome.mountainous.*;
 import org.terraform.biome.ocean.*;
@@ -99,6 +99,7 @@ public enum BiomeBank {
     ICE_SPIKES(new IceSpikesHandler(), BiomeType.FLAT, BiomeClimate.SNOWY, TConfigOption.BIOME_ICE_SPIKES_WEIGHT.getInt(), new FrozenCavePopulator()),
     DARK_FOREST(new DarkForestHandler(), BiomeType.FLAT, BiomeClimate.HUMID_VEGETATION, TConfigOption.BIOME_DARK_FOREST_WEIGHT.getInt()),
     SWAMP(new SwampHandler(), BiomeType.FLAT, BiomeClimate.HUMID_VEGETATION, TConfigOption.BIOME_SWAMP_WEIGHT.getInt()),
+    MANGROVE(new MangroveHandler(), BiomeType.FLAT, BiomeClimate.HUMID_VEGETATION, TConfigOption.BIOME_MANGROVE_WEIGHT.getInt()),
 
     //BEACHES (Don't include in selectBiome)
     SANDY_BEACH(new SandyBeachHandler(), BiomeType.BEACH, BiomeClimate.TRANSITION),
@@ -175,11 +176,8 @@ public enum BiomeBank {
     }
     
     /**
-     * Block X, block Z.
-     * @param tw
-     * @param x
-     * @param z
-     * @return
+     * @param x Block X
+     * @param z Block Z
      */
     public static BiomeSection getBiomeSectionFromBlockCoords(TerraformWorld tw, int x, int z) {
     	BiomeSection sect = new BiomeSection(tw,x,z);
@@ -198,8 +196,6 @@ public enum BiomeBank {
     /**
      * ChunkX, ChunkZ
      * @param tw
-     * @param x
-     * @param z
      * @return the biome section that this chunk belongs to.
      */
     public static BiomeSection getBiomeSectionFromChunk(TerraformWorld tw, int chunkX, int chunkZ) {
@@ -235,10 +231,6 @@ public enum BiomeBank {
      * THIS METHOD WILL RUN ALL CALCULATIONS.
      * <br><br>
      * Use terraformWorld.getCache(...).getBiomeBank(x,y,z) instead.
-     * @param tw
-     * @param rawX
-     * @param height
-     * @param rawZ
      * @return exact biome that will appear at these coordinates
      */
     public static BiomeBank calculateBiome(TerraformWorld tw, int rawX, int height, int rawZ) {
@@ -281,6 +273,7 @@ public enum BiomeBank {
         //Correct submerged biomes. They'll be rivers.
         //Exclude swamps from this check, as swamps are submerged.
         if(bank != BiomeBank.SWAMP
+                && bank != BiomeBank.MANGROVE
         		&& height < TerraformGenerator.seaLevel 
         		&& bank.getType().isDry()){
         	bank = bank.getHandler().getRiverType();
@@ -396,32 +389,20 @@ public enum BiomeBank {
     	
     	if(bank.getBiomeWeight() <= 0)
     		return false;
-    	
-    	switch(bank.getType()) {
-		case BEACH:
-			return true; //L
-		case DEEP_OCEANIC:
-			return singleDeepOcean == null || singleDeepOcean == bank;
-		case FLAT:
-			return singleLand == null || singleLand == bank;
-		case HIGH_MOUNTAINOUS:
-			return singleHighMountain == null || singleHighMountain == bank;
-		case MOUNTAINOUS:
-			return singleMountain == null || singleMountain == bank;
-		case OCEANIC:
-			return singleOcean == null || singleOcean == bank;
-		case RIVER:
-			return true; //L    	
-    	}
-    	return true;
+
+        return switch(bank.getType()) {
+            case BEACH, RIVER -> true; //L
+            case DEEP_OCEANIC -> singleDeepOcean == null || singleDeepOcean == bank;
+            case FLAT -> singleLand == null || singleLand == bank;
+            case HIGH_MOUNTAINOUS -> singleHighMountain == null || singleHighMountain == bank;
+            case MOUNTAINOUS -> singleMountain == null || singleMountain == bank;
+            case OCEANIC -> singleOcean == null || singleOcean == bank;
+            //L
+        };
     }
     
     /**
      * Used to get a biomebank from temperature and moisture values.
-     * @param section
-     * @param temperature
-     * @param moisture
-     * @return
      */
     public static BiomeBank selectBiome(BiomeSection section, double temperature, double moisture) {
     	Random sectionRand = section.getSectionRandom();
@@ -430,7 +411,7 @@ public enum BiomeBank {
     	BiomeClimate climate = BiomeClimate.selectClimate(temperature, moisture);
     	
     	double oceanicNoise = section.getOceanLevel();
-    	if(oceanicNoise < 0)
+    	if(oceanicNoise < 0 || TConfigOption.BIOME_OCEANIC_THRESHOLD.getFloat() < 0)
     	{
     		 oceanicNoise = Math.abs(oceanicNoise);
 	    	if(oceanicNoise >= TConfigOption.BIOME_DEEP_OCEANIC_THRESHOLD.getFloat()){

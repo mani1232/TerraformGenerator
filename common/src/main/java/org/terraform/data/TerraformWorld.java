@@ -3,38 +3,55 @@ package org.terraform.data;
 import org.bukkit.Bukkit;
 import org.bukkit.World;
 import org.terraform.biome.BiomeBank;
+import org.terraform.cave.NoiseCaveRegistry;
 import org.terraform.coregen.ChunkCache;
 import org.terraform.coregen.HeightMap;
 import org.terraform.coregen.bukkit.TerraformBukkitBlockPopulator;
 import org.terraform.coregen.bukkit.TerraformGenerator;
+import org.terraform.main.TerraformGeneratorPlugin;
 import org.terraform.main.config.TConfigOption;
 import org.terraform.utils.noise.FastNoise;
 import org.terraform.utils.noise.NoiseCacheHandler;
 import org.terraform.utils.noise.FastNoise.NoiseType;
 import org.terraform.utils.noise.NoiseCacheHandler.NoiseCacheEntry;
 
-import java.util.HashMap;
 import java.util.Objects;
 import java.util.Random;
+import java.util.concurrent.ConcurrentHashMap;
 
 public class TerraformWorld {
-    public static final HashMap<String, TerraformWorld> WORLDS = new HashMap<>();
+    private static final ConcurrentHashMap<String, TerraformWorld> WORLDS = new ConcurrentHashMap<>();
     private final String worldName;
     private final long seed;
     public int minY = 0;
     public int maxY = 256;
     private final TerraformBukkitBlockPopulator bukkitBlockPopulator;
 
+    public final NoiseCaveRegistry noiseCaveRegistry;
     public TerraformWorld(String name, long seed) {
+        TerraformGeneratorPlugin.logger.info("Creating TW instance: " + name + " - " + seed);
         this.worldName = name;
         this.seed = seed;
         this.bukkitBlockPopulator = new TerraformBukkitBlockPopulator(this);
+        this.noiseCaveRegistry = new NoiseCaveRegistry(this);
     }
 
     private TerraformWorld(World world) {
+        TerraformGeneratorPlugin.logger.info("Creating TW instance: " + world.getName() + " - " + world.getSeed());
         this.worldName = world.getName();
         this.seed = world.getSeed();
         this.bukkitBlockPopulator = new TerraformBukkitBlockPopulator(this);
+        this.noiseCaveRegistry = new NoiseCaveRegistry(this);
+    }
+
+    /**
+     * For multiverse. Ignores the cache entry.
+     */
+    public static TerraformWorld forceOverrideSeed(World world)
+    {
+        TerraformWorld tw = new TerraformWorld(world);
+        WORLDS.put(world.getName(), tw);
+        return tw;
     }
 
     public static TerraformWorld get(World world) {

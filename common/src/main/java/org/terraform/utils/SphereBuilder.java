@@ -119,8 +119,6 @@ public class SphereBuilder {
 
 	/**
 	 * Refers to minimum percentage radius (0.0 to 1.0)
-	 * @param minRadius
-	 * @return
 	 */
 	public SphereBuilder setMaxRadius(double maxRadius) {
 		this.maxRadius = maxRadius;
@@ -195,14 +193,14 @@ public class SphereBuilder {
     		if (hardReplace || !rel.getType().isSolid()) {
                 rel.setType(GenUtils.randMaterial(random, types));
                 if(this.doLiquidContainment)
-                	rel.replaceAdjacentNonLiquids(BlockUtils.sixBlockFaces, types[0], containmentMaterial);
+                	rel.replaceAdjacentNonLiquids(new BlockFace[]{BlockFace.DOWN, BlockFace.NORTH, BlockFace.SOUTH, BlockFace.EAST, BlockFace.WEST}, types[0], containmentMaterial);
             }
 //    		else
 //    			return false;
     	} else if(replaceWhitelist.contains(rel.getType())) {
             rel.setType(GenUtils.randMaterial(random, types));
             if(this.doLiquidContainment)
-            	rel.replaceAdjacentNonLiquids(BlockUtils.sixBlockFaces, types[0], containmentMaterial);
+            	rel.replaceAdjacentNonLiquids(new BlockFace[]{BlockFace.DOWN, BlockFace.NORTH, BlockFace.SOUTH, BlockFace.EAST, BlockFace.WEST}, types[0], containmentMaterial);
     	}
 //    	else
 //    		return false;

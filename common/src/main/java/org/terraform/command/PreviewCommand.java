@@ -4,23 +4,28 @@ import java.awt.Color;
 import java.awt.image.BufferedImage;
 import java.io.File;
 import java.io.IOException;
-import java.util.Collection;
-import java.util.Objects;
 import java.util.Random;
 import java.util.Stack;
+import java.util.UUID;
 
 import javax.imageio.ImageIO;
 
+import org.bukkit.Material;
+import org.bukkit.World;
+import org.bukkit.block.Biome;
+import org.bukkit.block.data.BlockData;
 import org.bukkit.command.CommandSender;
+import org.bukkit.generator.ChunkGenerator;
+import org.bukkit.generator.WorldInfo;
+import org.bukkit.material.MaterialData;
+import org.jetbrains.annotations.NotNull;
 import org.terraform.biome.BiomeBank;
-import org.terraform.biome.BiomeSection;
 import org.terraform.biome.BiomeType;
 import org.terraform.command.contants.InvalidArgumentException;
 import org.terraform.command.contants.TerraCommand;
-import org.terraform.data.SimpleLocation;
+import org.terraform.coregen.bukkit.TerraformGenerator;
 import org.terraform.data.TerraformWorld;
 import org.terraform.main.TerraformGeneratorPlugin;
-import org.terraform.utils.GenUtils;
 
 public class PreviewCommand extends TerraCommand {
 
@@ -48,60 +53,25 @@ public class PreviewCommand extends TerraCommand {
     public void execute(CommandSender sender, Stack<String> args)
             throws InvalidArgumentException {
         //int seed = GenUtils.randInt(1, 1000000);
-        int x = 5000;
-        int z = 5000;
-        double highest = -1;
-        double lowest = 10000;
-        boolean hasdebugged = true;
+        int maxX = 16*10;
+        int maxY = TerraformGeneratorPlugin.injector.getMaxY()-TerraformGeneratorPlugin.injector.getMinY();
+
         TerraformWorld tw = TerraformWorld.get("test-world-"+new Random().nextInt(99999), new Random().nextInt(99999));//TerraformWorld.get("test-world", 11111);
-        
-        BufferedImage img = new BufferedImage(x, z, BufferedImage.TYPE_INT_RGB);
-        //file object
-        File f = new File("terra-preview.png");
-        if (f.exists())
-            f.delete();
-        double dither = 0.04;
-        int debugX = 0;
-        int debugZ = 0;
-        for (int nz = -z/2; nz < z/2; nz++) {
-            for (int nx = -x/2; nx < x/2; nx++) {
-            	Random locationBasedRandom  = new Random(Objects.hash(tw.getSeed(),nx,nz));
-            	SimpleLocation target  = new SimpleLocation(nx,0,nz);
-            	BiomeSection homeSection = BiomeBank.getBiomeSectionFromBlockCoords(tw, nx,nz);
-            	boolean debugMe = !hasdebugged && homeSection.getX() == debugX && homeSection.getZ() == debugZ;
-            	if(debugMe) {
-            		hasdebugged = true;
-            		TerraformGeneratorPlugin.logger.info("Debugging: "+homeSection.toString());
-            		TerraformGeneratorPlugin.logger.info(nx + "," + nz);
-            	}
-            	Collection<BiomeSection> sections = BiomeSection.getSurroundingSections(tw, nx, nz);
-            	BiomeSection mostDominant = homeSection;
-            	if(debugMe)TerraformGeneratorPlugin.logger.info(homeSection.toString() + " Dom: " + homeSection.getDominance(target));
-            	for(BiomeSection sect:sections) {
-            		float dom = (float) (sect.getDominance(target)+GenUtils.randDouble(locationBasedRandom,-dither,dither));
-            		if(debugMe)
-            			TerraformGeneratorPlugin.logger.info(sect.toString() + " Dom: " + dom);
-            		if(dom > mostDominant.getDominance(target)+GenUtils.randDouble(locationBasedRandom,-dither,dither))
-            			mostDominant = sect;
-            	}
-            	
-            	if(nx % BiomeSection.sectionWidth == 0 || nz % BiomeSection.sectionWidth == 0)
-            		img.setRGB(nx+x/2, nz+z/2, new Color(255,0,0).getRGB());
-            	else {
-            		Color col = getClimateColor(mostDominant.getBiomeBank());
-//            		if(homeSection.getX() % 2 == 0 && homeSection.getZ() % 2 == 0) {
-//            			col = col.darker();
-//            			if(homeSection.getDominanceBasedOnRadius(target.getX(), target.getZ()) > 0)
-//            				col = col.darker();
-//            		}
-//            		
-//            		//Debug this section
-//            		if(homeSection.getX() == debugX && homeSection.getZ() == debugZ) {
-//            			col = new Color((col.getRed() + 30) % 255, col.getBlue(), col.getGreen());
-//            			
-//            		}
-            		img.setRGB(nx+x/2, nz+z/2, col.getRGB());
-            	}
+
+        ImageWorldInfo iwi = new ImageWorldInfo(tw.getName(), tw.getSeed());
+
+        BufferedImage img = new BufferedImage(maxX, maxY+maxX, BufferedImage.TYPE_INT_RGB);
+        //Delete existing
+        File f = new File("terra-preview.png"); if (f.exists()) f.delete();
+        TerraformGenerator generator = new TerraformGenerator();
+        //Generate both side and top-down
+        for (int x = (-maxX/2)>>4; x < (maxX/2)>>4; x++) {
+            for(int z = (-maxX/2)>>4; z < (maxX/2)>>4; z++)
+            {
+                ImageChunkData icd = new ImageChunkData(img, x,z, maxX, maxY);
+                generator.generateNoise(iwi, tw.getHashedRand(1, x,z), x, z, icd);
+                generator.generateSurface(iwi, tw.getHashedRand(1, x,z), x, z, icd);
+                generator.generateCaves(iwi, tw.getHashedRand(1, x,z), x, z, icd);
             }
         }
         try {
@@ -110,10 +80,162 @@ public class PreviewCommand extends TerraCommand {
         } catch (IOException e) {
             System.out.println(e);
         }
-        sender.sendMessage("Exported. H: " + highest + ", L: " + lowest);
+        System.out.println("Done.");
     }
 
-    
+    private class ImageChunkData implements ChunkGenerator.ChunkData{
+        final BufferedImage img;
+        final int chunkX,chunkZ,maxX,maxY;
+        private final int[][] maxHeights = new int[16][16];
+
+        private ImageChunkData(BufferedImage img, int chunkX, int chunkZ, int maxX, int maxY) {
+            this.img = img;
+            this.chunkX = chunkX;
+            this.chunkZ = chunkZ;
+            this.maxY = maxY;
+            this.maxX = maxX;
+        }
+
+        //We only care about this one.
+        //x,z in [0,15]
+        @Override
+        public void setBlock(int x, int y, int z, @NotNull Material material) {
+            Color col;
+            switch(material){
+                case STONE -> col = Color.LIGHT_GRAY;
+                case DEEPSLATE -> col = Color.GRAY;
+                case WATER -> col = Color.CYAN;
+                case CAVE_AIR -> col = Color.RED.darker();
+                default -> col = Color.GREEN.darker();
+            }
+
+            //Vertical slice at z=0
+            if(z==0 && chunkZ == 0)
+                img.setRGB(
+                        (maxX/2) + x+chunkX*16,
+                        maxY-(y-TerraformGeneratorPlugin.injector.getMinY())-1,
+                        col.getRGB());
+            //Top-Down slice
+            if(y>=maxHeights[x][z])
+            {
+                maxHeights[x][z] = y;
+                if((y-TerraformGenerator.seaLevel) % 3 == 0) {
+                    if(y > TerraformGenerator.seaLevel)
+                        col = col.brighter();
+                     else col = col.darker();
+                }
+                img.setRGB((maxX/2) + x+chunkX*16,
+                        maxY+(maxX/2) + z+chunkZ*16,col.getRGB());
+            }
+        }
+        @Override
+        public void setBlock(int i, int i1, int i2, @NotNull BlockData blockData) {
+
+        }
+
+        @Override
+        public int getMinHeight() {
+            return 0; //idc
+        }
+
+        @Override
+        public int getMaxHeight() {
+            return 0; //idc
+        }
+
+        @NotNull
+        @Override
+        public Material getType(int i, int i1, int i2) {
+            return null;
+        }
+
+        @NotNull
+        @Override
+        public BlockData getBlockData(int i, int i1, int i2) {
+            return null;
+        }
+
+        //Ignore these.
+        @NotNull
+        @Override
+        public Biome getBiome(int i, int i1, int i2) {
+            return null;
+        }
+        @Override
+        public void setBlock(int i, int i1, int i2, @NotNull MaterialData materialData) {
+
+        }
+
+        @Override
+        public void setRegion(int i, int i1, int i2, int i3, int i4, int i5, @NotNull Material material) {
+
+        }
+
+        @Override
+        public void setRegion(int i, int i1, int i2, int i3, int i4, int i5, @NotNull MaterialData materialData) {
+
+        }
+
+        @Override
+        public void setRegion(int i, int i1, int i2, int i3, int i4, int i5, @NotNull BlockData blockData) {
+
+        }
+
+        @NotNull
+        @Override
+        public MaterialData getTypeAndData(int i, int i1, int i2) {
+            return null;
+        }
+
+        @Override
+        public byte getData(int i, int i1, int i2) {
+            return 0;
+        }
+    }
+
+    private class ImageWorldInfo implements WorldInfo{
+        private final String name;
+        private final long seed;
+
+        private ImageWorldInfo(String name, long seed) {
+            this.name = name;
+            this.seed = seed;
+        }
+
+        @NotNull
+        @Override
+        public String getName() {
+            return name;
+        }
+
+        @NotNull
+        @Override
+        public UUID getUID() {
+            return null;
+        }
+
+        @NotNull
+        @Override
+        public World.Environment getEnvironment() {
+            return null;
+        }
+
+        @Override
+        public long getSeed() {
+            return seed;
+        }
+
+        @Override
+        public int getMinHeight() {
+            return 0;
+        }
+
+        @Override
+        public int getMaxHeight() {
+            return 0;
+        }
+    }
+    @SuppressWarnings("unused")
 	private Color getClimateColor(BiomeBank bank) {
     	if(bank.getType() == BiomeType.OCEANIC||bank.getType() == BiomeType.DEEP_OCEANIC)
     		return Color.blue;

@@ -11,8 +11,10 @@ import org.terraform.data.TerraformWorld;
 import org.terraform.main.config.TConfigOption;
 import org.terraform.tree.FractalTreeBuilder;
 import org.terraform.tree.FractalTypes;
+import org.terraform.tree.TreeDB;
 import org.terraform.utils.BlockUtils;
 import org.terraform.utils.GenUtils;
+import org.terraform.utils.version.OneOneNineBlockHandler;
 
 import java.util.Random;
 
@@ -38,49 +40,32 @@ public class DarkForestRiverHandler extends BiomeHandler {
 
 
     @Override
-    public void populateSmallItems(TerraformWorld world, Random random, PopulatorDataAbstract data) {
-        for (int x = data.getChunkX() * 16; x < data.getChunkX() * 16 + 16; x++) {
-            for (int z = data.getChunkZ() * 16; z < data.getChunkZ() * 16 + 16; z++) {
-                int y = GenUtils.getHighestGround(data, x, z);
-                if(y >= TerraformGenerator.seaLevel) //Don't apply to dry land
-                	continue;
-                if (data.getBiome(x, z) != getBiome()) continue;
+    public void populateSmallItems(TerraformWorld world, Random random, int rawX, int surfaceY, int rawZ, PopulatorDataAbstract data) {
 
-                //Set ground near sea level to coarse dirt
-                if(y >= TerraformGenerator.seaLevel - 2) {
-                	data.setType(x, y, z, Material.COARSE_DIRT);
-                }else if(y >= TerraformGenerator.seaLevel - 4) {
-                	if(random.nextBoolean())
-                    	data.setType(x, y, z, Material.COARSE_DIRT);
-                }
-                
-                //Don't generate kelp on non-stonelike.
-                if (!BlockUtils.isStoneLike(data.getType(x, y, z))) continue;
+        if(surfaceY >= TerraformGenerator.seaLevel) //Don't apply to dry land
+            return;
 
-                // SEA GRASS/KELP
-                if (GenUtils.chance(random, 1, 10)) {
-                    data.setType(x, y + 1, z, Material.SEAGRASS);
-                    if (random.nextBoolean() && y < TerraformGenerator.seaLevel - 2)
-                    	generateKelp(x, y + 1, z, data, random);
-                }
-
-                // Generate clay
-                if (GenUtils.chance(random, TConfigOption.BIOME_CLAY_DEPOSIT_CHANCE_OUT_OF_THOUSAND.getInt(), 1000)) {
-                    BlockUtils.generateClayDeposit(x, y, z, data, random);
-                }
-                
-                if(GenUtils.chance(random, 1, 1000)) {
-                	BlockUtils.replaceCircularPatch(random.nextInt(9999), 2.0f, new SimpleBlock(data,x,y,z), Material.MAGMA_BLOCK);
-                }
-            }
+        //Set ground near sea level to coarse dirt
+        if(surfaceY >= TerraformGenerator.seaLevel - 2) {
+            data.setType(rawX, surfaceY, rawZ, Material.COARSE_DIRT);
+        }else if(surfaceY >= TerraformGenerator.seaLevel - 4) {
+            if(random.nextBoolean())
+                data.setType(rawX, surfaceY, rawZ, Material.COARSE_DIRT);
         }
-    }
 
-    private void generateKelp(int x, int y, int z, PopulatorDataAbstract data, Random random) {
-        for (int ny = y; ny < TerraformGenerator.seaLevel - GenUtils.randInt(5, 15); ny++) {
-        	if(data.getType(x, ny, z) != Material.WATER)
-        		break;
-            data.setType(x, ny, z, Material.KELP_PLANT);
+        //Don't generate kelp on non-stonelike.
+        if (!BlockUtils.isStoneLike(data.getType(rawX, surfaceY, rawZ))) return;
+
+        // SEA GRASS/KELP
+        RiverHandler.riverVegetation(world, random, data, rawX, surfaceY, rawZ);
+
+        // Generate clay
+        if (GenUtils.chance(random, TConfigOption.BIOME_CLAY_DEPOSIT_CHANCE_OUT_OF_THOUSAND.getInt(), 1000)) {
+            BlockUtils.generateClayDeposit(rawX, surfaceY, rawZ, data, random);
+        }
+
+        if(GenUtils.chance(random, 1, 1000)) {
+            BlockUtils.replaceCircularPatch(random.nextInt(9999), 2.0f, new SimpleBlock(data,rawX,surfaceY,rawZ), Material.MAGMA_BLOCK);
         }
     }
 
@@ -98,30 +83,11 @@ public class DarkForestRiverHandler extends BiomeHandler {
 	                if(treeY < TerraformGenerator.seaLevel) {
 	                	 //Don't do gradient checks for swamp trees, the mud is uneven.
 	                	//just make sure it's submerged
-	                    new FractalTreeBuilder(FractalTypes.Tree.SWAMP_BOTTOM)
-	                            .skipGradientCheck().build(tw, data, sLoc.getX(), treeY - 3, sLoc.getZ());
-	                    new FractalTreeBuilder(FractalTypes.Tree.SWAMP_TOP)
-	                    		.skipGradientCheck().build(tw, data, sLoc.getX(), treeY - 2, sLoc.getZ());
+                        TreeDB.spawnBreathingRoots(tw, new SimpleBlock(data,sLoc), OneOneNineBlockHandler.MANGROVE_ROOTS);
+                        FractalTypes.Tree.SWAMP_TOP.build(tw, new SimpleBlock(data,sLoc), (t)->t.setCheckGradient(false));
 	                }
 	            }
 		 }
-        
-        for (SimpleLocation sLoc : roots) {
-            if (data.getBiome(sLoc.getX(),sLoc.getZ()) == getBiome()) {
-                int rootY = GenUtils.getHighestGround(data, sLoc.getX(),sLoc.getZ());
-                sLoc.setY(rootY);
-                if(!BlockUtils.isDirtLike(data.getType(sLoc.getX(),sLoc.getY(),sLoc.getZ())))
-                		continue;
-                
-                int minHeight = 3;
-                if (sLoc.getY() < TerraformGenerator.seaLevel) {
-                    minHeight = TerraformGenerator.seaLevel - sLoc.getY();
-                }
-
-                BlockUtils.spawnPillar(random, data, sLoc.getX(), sLoc.getY() + 1, sLoc.getZ(), Material.OAK_LOG, minHeight, minHeight + 3);
-                
-            }
-        }
 	}
 
 

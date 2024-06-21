@@ -3,6 +3,7 @@ package org.terraform.data;
 import com.google.gson.annotations.SerializedName;
 
 import java.util.Arrays;
+import java.util.EnumSet;
 import java.util.Random;
 
 import org.bukkit.Bukkit;
@@ -268,11 +269,11 @@ public class SimpleBlock {
     }
 
     public int getChunkX() {
-        return x / 16;
+        return x >> 4;
     }
 
     public int getChunkZ() {
-        return z / 16;
+        return z >> 4;
     }
 
     public SimpleChunkLocation getSChunk(String world) {
@@ -349,8 +350,7 @@ public class SimpleBlock {
     public void setType(Material type) {
         if (popData.getType(x, y, z) == Material.WATER) {
             BlockData data = Bukkit.createBlockData(type);
-            if (data instanceof Waterlogged) {
-                Waterlogged wl = (Waterlogged) data;
+            if (data instanceof Waterlogged wl) {
                 wl.setWaterlogged(true);
             }
             popData.setBlockData(x, y, z, data);
@@ -784,5 +784,12 @@ public class SimpleBlock {
     
     public String toString() {
     	return x + "," + y + "," + z;
+    }
+
+    public void rsetType(EnumSet<Material> toReplace, Material... type) {
+        popData.rsetType(this.toVector(),toReplace,type);
+    }
+    public void rsetBlockData(EnumSet<Material> toReplace, BlockData data) {
+        popData.rsetBlockData(this.toVector(),toReplace,data);
     }
 }

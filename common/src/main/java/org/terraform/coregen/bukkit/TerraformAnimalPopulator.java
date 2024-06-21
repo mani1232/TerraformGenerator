@@ -9,6 +9,7 @@ import org.terraform.coregen.populatordata.PopulatorDataPostGen;
 import org.terraform.data.TerraformWorld;
 import org.terraform.main.config.TConfigOption;
 import org.terraform.populators.AnimalPopulator;
+import org.terraform.utils.version.OneTwentyFiveBlockHandler;
 import org.terraform.utils.version.Version;
 
 import java.util.Random;
@@ -19,6 +20,7 @@ public class TerraformAnimalPopulator extends BlockPopulator {
 
     private static final AnimalPopulator[] ANIMAL_POPULATORS = {
     		null, //Slot for goat
+            null, //Slot for armadillo
     		
             new AnimalPopulator(EntityType.PIG, TConfigOption.ANIMALS_PIG_MINHERDSIZE.getInt(), TConfigOption.ANIMALS_PIG_MAXHERDSIZE.getInt(),
                     TConfigOption.ANIMALS_PIG_CHANCE.getInt(), false, BiomeBank.BLACK_OCEAN, BiomeBank.MUSHROOM_ISLANDS, BiomeBank.MUSHROOM_BEACH,BiomeBank.RIVER, BiomeBank.FROZEN_RIVER, BiomeBank.OCEAN, BiomeBank.COLD_OCEAN, BiomeBank.FROZEN_OCEAN,
@@ -107,6 +109,9 @@ public class TerraformAnimalPopulator extends BlockPopulator {
             new AnimalPopulator(EntityType.TROPICAL_FISH, TConfigOption.ANIMALS_TROPICALFISH_MINHERDSIZE.getInt(), TConfigOption.ANIMALS_TROPICALFISH_MAXHERDSIZE.getInt(),
                     TConfigOption.ANIMALS_TROPICALFISH_CHANCE.getInt(), true, BiomeBank.DEEP_LUKEWARM_OCEAN, BiomeBank.CORAL_REEF_OCEAN, BiomeBank.DEEP_LUKEWARM_OCEAN, BiomeBank.WARM_OCEAN)
             .setAquatic(true),
+
+            new AnimalPopulator(EntityType.MUSHROOM_COW, TConfigOption.ANIMALS_MOOSHROOM_MINHERDSIZE.getInt(), TConfigOption.ANIMALS_MOOSHROOM_MAXHERDSIZE.getInt(),
+                    TConfigOption.ANIMALS_MOOSHROOM_CHANCE.getInt(), true, BiomeBank.MUSHROOM_BEACH, BiomeBank.MUSHROOM_ISLANDS),
     };
     
     public TerraformAnimalPopulator(TerraformWorld tw) {
@@ -115,24 +120,22 @@ public class TerraformAnimalPopulator extends BlockPopulator {
         	ANIMAL_POPULATORS[0] = new AnimalPopulator(EntityType.valueOf("GOAT"), TConfigOption.ANIMALS_GOAT_MINHERDSIZE.getInt(), TConfigOption.ANIMALS_GOAT_MAXHERDSIZE.getInt(),
                     TConfigOption.ANIMALS_GOAT_CHANCE.getInt(), true, BiomeBank.ROCKY_MOUNTAINS, BiomeBank.SNOWY_MOUNTAINS);
         }
+        if(Version.isAtLeast(20.5)) {
+            ANIMAL_POPULATORS[1] = new AnimalPopulator(OneTwentyFiveBlockHandler.ARMADILLO, TConfigOption.ANIMALS_ARMADILLO_MINHERDSIZE.getInt(), TConfigOption.ANIMALS_ARMADILLO_MAXHERDSIZE.getInt(),
+                    TConfigOption.ANIMALS_ARMADILLO_CHANCE.getInt(), true, BiomeBank.SAVANNA, BiomeBank.SHATTERED_SAVANNA, BiomeBank.BADLANDS, BiomeBank.BADLANDS_CANYON);
+        }
     }
 
     @Override
     public void populate(World world, Random random, Chunk chunk) {
        
     	PopulatorDataPostGen data = new PopulatorDataPostGen(chunk);
-        //ArrayList<BiomeBank> banks = GenUtils.getBiomesInChunk(tw, chunk.getX(),chunk.getZ());
 
-    	//wtf was this set for
-        //Set<EntityType> spawned = EnumSet.noneOf(EntityType.class);
-        //TerraformGeneratorPlugin.logger.debug("animal-populator eval for " + data.getChunkX() + "," + data.getChunkZ());
-        for (AnimalPopulator pop : ANIMAL_POPULATORS) {
+    	for (AnimalPopulator pop : ANIMAL_POPULATORS) {
         	if(pop == null) continue;
             if (pop.canSpawn(tw.getHashedRand(chunk.getX(), pop.hashCode(), chunk.getZ()))) {
-                //TerraformGeneratorPlugin.logger.debug("animal populator proc");
                 pop.populate(tw, tw.getHashedRand(chunk.getX(), 111+pop.hashCode(), chunk.getZ()), data);
             }
         }
-        //spawned.clear();
     }
 }

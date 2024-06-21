@@ -17,8 +17,12 @@ import org.bukkit.block.data.Rail.Shape;
 import org.bukkit.block.data.Rotatable;
 import org.bukkit.block.data.Waterlogged;
 import org.bukkit.block.data.type.Bed;
+import org.bukkit.block.data.type.Candle;
+import org.bukkit.block.data.type.CaveVines;
+import org.bukkit.block.data.type.CaveVinesPlant;
 import org.bukkit.block.data.type.Door;
 import org.bukkit.block.data.type.Leaves;
+import org.bukkit.block.data.type.PointedDripstone;
 import org.bukkit.block.data.type.Stairs;
 import org.terraform.coregen.bukkit.TerraformGenerator;
 import org.terraform.coregen.populatordata.PopulatorDataAbstract;
@@ -32,11 +36,12 @@ import org.terraform.utils.blockdata.fixers.v1_16_R1_BlockDataFixer;
 import org.terraform.utils.noise.FastNoise;
 import org.terraform.utils.noise.FastNoise.NoiseType;
 import org.terraform.utils.version.OneOneNineBlockHandler;
-import org.terraform.utils.version.OneOneSevenBlockHandler;
-import org.terraform.utils.version.OneOneSixBlockHandler;
+import org.terraform.utils.version.OneTwentyBlockHandler;
 import org.terraform.utils.version.Version;
 
 import java.util.EnumSet;
+import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Random;
 import java.util.Set;
 
@@ -63,19 +68,94 @@ public class BlockUtils {
     			glassPanes.add(mat);
     	}
 	}
-	
+
+    //This is needed as REPLACABLE_BY_TREES is a 1.20 tag.
+    //Also this has mushrooms and saplings, snow and coral fans
+    public static final EnumSet<Material> replacableByTrees = EnumSet.of(
+            Material.ACACIA_SAPLING,
+            Material.DARK_OAK_SAPLING,
+            Material.BIRCH_SAPLING,
+            Material.SPRUCE_SAPLING,
+            Material.JUNGLE_SAPLING,
+            Material.OAK_SAPLING,
+            OneTwentyBlockHandler.CHERRY_SAPLING,
+            Material.ACACIA_LEAVES,
+            Material.AZALEA_LEAVES,
+            Material.DARK_OAK_LEAVES,
+            Material.BIRCH_LEAVES,
+            Material.SPRUCE_LEAVES,
+            Material.JUNGLE_LEAVES,
+            Material.OAK_LEAVES,
+            OneTwentyBlockHandler.CHERRY_LEAVES,
+            Material.FLOWERING_AZALEA_LEAVES,
+            Material.BROWN_MUSHROOM,
+            Material.RED_MUSHROOM,
+            Material.GRASS,
+            Material.FERN,
+            Material.DEAD_BUSH,
+            Material.VINE,
+            Material.GLOW_LICHEN,
+            Material.SUNFLOWER,
+            Material.LILAC,
+            Material.ROSE_BUSH,
+            Material.PEONY,
+            Material.TALL_GRASS,
+            Material.LARGE_FERN,
+            Material.HANGING_ROOTS,
+            OneTwentyBlockHandler.PITCHER_PLANT,
+            Material.WATER,
+            Material.AIR,
+            Material.CAVE_AIR,
+            Material.SEAGRASS,
+            Material.TALL_SEAGRASS,
+            Material.WARPED_ROOTS,
+            Material.NETHER_SPROUTS,
+            Material.CRIMSON_ROOTS,
+            Material.SNOW,
+            Material.BRAIN_CORAL_FAN,
+            Material.BUBBLE_CORAL_FAN,
+            Material.FIRE_CORAL_FAN,
+            Material.HORN_CORAL_FAN,
+            Material.TUBE_CORAL_FAN,
+            Material.BRAIN_CORAL_WALL_FAN,
+            Material.BUBBLE_CORAL_WALL_FAN,
+            Material.FIRE_CORAL_WALL_FAN,
+            Material.HORN_CORAL_WALL_FAN,
+            Material.TUBE_CORAL_WALL_FAN,
+            Material.DEAD_BRAIN_CORAL_FAN,
+            Material.DEAD_BUBBLE_CORAL_FAN,
+            Material.DEAD_FIRE_CORAL_FAN,
+            Material.DEAD_HORN_CORAL_FAN,
+            Material.DEAD_TUBE_CORAL_FAN,
+            Material.DEAD_BRAIN_CORAL_WALL_FAN,
+            Material.DEAD_BUBBLE_CORAL_WALL_FAN,
+            Material.DEAD_FIRE_CORAL_WALL_FAN,
+            Material.DEAD_HORN_CORAL_WALL_FAN,
+            Material.DEAD_TUBE_CORAL_WALL_FAN
+    );
+
     // N
     //W E
     // S
     public static final BlockFace[] xzPlaneBlockFaces = new BlockFace[] {
             BlockFace.NORTH, BlockFace.NORTH_EAST, BlockFace.EAST, BlockFace.SOUTH_EAST, BlockFace.SOUTH, BlockFace.SOUTH_WEST, BlockFace.WEST, BlockFace.NORTH_WEST
     };
-    
+
+    public static final EnumSet<Material> fluids = EnumSet.of(Material.WATER, Material.LAVA);
     public static final EnumSet<Material> wetMaterials = EnumSet.of(
     		Material.WATER,
     		Material.KELP_PLANT,
     		Material.SEAGRASS,
     		Material.TALL_SEAGRASS
+    );
+
+    public static final EnumSet<Material> amethysts = EnumSet.of(
+            Material.AMETHYST_BLOCK,
+            Material.AMETHYST_CLUSTER,
+            Material.BUDDING_AMETHYST,
+            Material.LARGE_AMETHYST_BUD,
+            Material.MEDIUM_AMETHYST_BUD,
+            Material.SMALL_AMETHYST_BUD
     );
     
     public static final BlockFace[] flatBlockFaces3x3 = {
@@ -107,42 +187,43 @@ public class BlockUtils {
             Material.GRANITE, Material.ANDESITE,
             Material.DIORITE, Material.GRAVEL,
             Material.CLAY,
-            OneOneSevenBlockHandler.DEEPSLATE,
-            OneOneSevenBlockHandler.TUFF,
-            OneOneSevenBlockHandler.CALCITE,
-            OneOneSevenBlockHandler.BUDDING_AMETHYST,
-            OneOneSevenBlockHandler.AMETHYST_BLOCK,
-            OneOneSevenBlockHandler.DRIPSTONE_BLOCK,
-            OneOneSixBlockHandler.SMOOTH_BASALT,
+            Material.DEEPSLATE,
+            Material.TUFF,
+            Material.CALCITE,
+            Material.BUDDING_AMETHYST,
+            Material.AMETHYST_BLOCK,
+            Material.DRIPSTONE_BLOCK,
+            Material.SMOOTH_BASALT,
             Material.PACKED_ICE, Material.BLUE_ICE,
             Material.DIRT, Material.PODZOL, Material.GRASS_BLOCK, Material.MYCELIUM,
-            OneOneSevenBlockHandler.ROOTED_DIRT, OneOneSevenBlockHandler.DIRT_PATH(),
+            Material.ROOTED_DIRT, Material.DIRT_PATH,
             OneOneNineBlockHandler.SCULK
     );
     
     public static final EnumSet<Material> caveDecoratorMaterials = EnumSet.of(
     		Material.ANDESITE_WALL, Material.DIORITE_WALL, Material.GRANITE_WALL,
-    		Material.COBBLESTONE_WALL, Material.MOSSY_COBBLESTONE_WALL, 
-    		OneOneSevenBlockHandler.COBBLED_DEEPSLATE_WALL,
+    		Material.COBBLESTONE_WALL, Material.MOSSY_COBBLESTONE_WALL,
+            Material.MOSSY_COBBLESTONE_SLAB,
+            Material.COBBLED_DEEPSLATE_WALL,
     		Material.COBBLESTONE_SLAB, Material.STONE_SLAB,
-    		OneOneSevenBlockHandler.COBBLED_DEEPSLATE_SLAB,
-    		OneOneSevenBlockHandler.MOSS_BLOCK, 
-    		OneOneSevenBlockHandler.MOSS_CARPET, 
-    		OneOneSevenBlockHandler.CAVE_VINES,
-    		OneOneSevenBlockHandler.HANGING_ROOTS,
-    		OneOneSevenBlockHandler.SPORE_BLOSSOM,
-    		OneOneSevenBlockHandler.SMALL_DRIPLEAF,
-    		OneOneSevenBlockHandler.AZALEA,
-    		OneOneSevenBlockHandler.FLOWERING_AZALEA,
-    		OneOneSevenBlockHandler.BIG_DRIPLEAF,
-    		OneOneSevenBlockHandler.BIG_DRIPLEAF_STEM,
+            Material.COBBLED_DEEPSLATE_SLAB,
+            Material.MOSS_BLOCK,
+            Material.MOSS_CARPET,
+            Material.CAVE_VINES,
+            Material.HANGING_ROOTS,
+            Material.SPORE_BLOSSOM,
+            Material.SMALL_DRIPLEAF,
+            Material.AZALEA,
+            Material.FLOWERING_AZALEA,
+            Material.BIG_DRIPLEAF,
+            Material.BIG_DRIPLEAF_STEM,
     		Material.GRASS, Material.TALL_GRASS,
     		Material.ICE, Material.PACKED_ICE,
-    		OneOneSevenBlockHandler.DRIPSTONE_BLOCK,
-    		OneOneSevenBlockHandler.POINTED_DRIPSTONE,
-    		OneOneSevenBlockHandler.AMETHYST_CLUSTER,
-    		OneOneSevenBlockHandler.BUDDING_AMETHYST,
-    		OneOneSevenBlockHandler.GLOW_LICHEN,
+            Material.DRIPSTONE_BLOCK,
+            Material.POINTED_DRIPSTONE,
+            Material.AMETHYST_CLUSTER,
+            Material.BUDDING_AMETHYST,
+            Material.GLOW_LICHEN,
 
             //ItemsAdder Blocks
             Material.NOTE_BLOCK,
@@ -582,8 +663,8 @@ public class BlockUtils {
             case MYCELIUM:
                 return true;
             default:
-                return mat == OneOneSevenBlockHandler.DIRT_PATH() ||
-                		mat == OneOneSevenBlockHandler.ROOTED_DIRT;
+                return mat == Material.DIRT_PATH ||
+                		mat == Material.ROOTED_DIRT;
         }
     }
 
@@ -841,7 +922,7 @@ public class BlockUtils {
 	                        	if(isWet(relrel) ||
 	                        			relrel.getType() == Material.LAVA)
 	                        	{
-	                        		Material setMat = relrel.getY() < 0 ? OneOneSevenBlockHandler.DEEPSLATE: Material.STONE;
+	                        		Material setMat = relrel.getY() < 0 ? Material.DEEPSLATE: Material.STONE;
 	                        		relrel.physicsSetType(setMat, false);
 	                        	}
 	                        }
@@ -1016,6 +1097,13 @@ public class BlockUtils {
     	return false;
     }
 
+    public static boolean isExposedToMaterial(SimpleBlock target, Set<Material> mats) {
+        for(BlockFace face:directBlockFaces) {
+            if(mats.contains(target.getRelative(face).getType()))
+                return true;
+        }
+        return false;
+    }
     public static boolean isExposedToMaterial(SimpleBlock target, Material mat) {
     	for(BlockFace face:directBlockFaces) {
     		if(target.getRelative(face).getType() == mat)
@@ -1374,4 +1462,128 @@ public class BlockUtils {
     		if(ore == mat) return true;
     	return false;
     }
+    public static void placeCandle(SimpleBlock block, int numCandles, boolean lit) {
+        Candle candle = (Candle) Bukkit.createBlockData(Material.CANDLE);
+        candle.setLit(lit);
+
+        candle.setCandles(numCandles);
+        block.setBlockData(candle);
+    }
+
+    public static void downLPointedDripstone(int height, SimpleBlock base) {
+        int realHeight = 0;
+        while(!base.getRelative(0,-realHeight,0).getType().isSolid() && height > 0) {
+            realHeight++;
+            height--;
+        }
+        if(base.getRelative(0,-realHeight,0).getType().isSolid())
+            realHeight--;
+
+        if(realHeight <= 0) return;
+
+        for(int i = realHeight; i > 0; i--) {
+            PointedDripstone.Thickness thickness = PointedDripstone.Thickness.MIDDLE;
+            if(i == 1)
+                thickness = PointedDripstone.Thickness.TIP;
+            if(i == 2)
+                thickness = PointedDripstone.Thickness.FRUSTUM;
+            if(i == realHeight && realHeight > 2)
+                thickness = PointedDripstone.Thickness.BASE;
+
+            PointedDripstone dripstone = (PointedDripstone) Bukkit.createBlockData(Material.POINTED_DRIPSTONE);
+            dripstone.setVerticalDirection(BlockFace.DOWN);
+            dripstone.setThickness(thickness);
+            base.getRelative(0, -(realHeight - i), 0).setBlockData(dripstone);
+        }
+    }
+
+    public static Material stoneOrSlate(int y)
+    {
+        return y > 0 ? Material.STONE :
+                y < -3 ? Material.DEEPSLATE :
+                GenUtils.randMaterial(Material.STONE, Material.DEEPSLATE);
+    }
+    public static Material stoneOrSlateWall(int y)
+    {
+        return y > 0 ? Material.COBBLESTONE_WALL :
+                y < -3 ? Material.COBBLED_DEEPSLATE_WALL :
+                        GenUtils.randMaterial(Material.COBBLESTONE_WALL, Material.COBBLED_DEEPSLATE_WALL);
+    }
+
+    public static void upLPointedDripstone(int height, SimpleBlock base) {
+        int realHeight = 0;
+        while(!base.getRelative(0,realHeight,0).getType().isSolid() && height > 0) {
+            realHeight++;
+            height--;
+        }
+        if(base.getRelative(0,realHeight,0).getType().isSolid())
+            realHeight--;
+
+        if(realHeight <= 0) return;
+
+        for(int i = 0; i < realHeight; i++) {
+            PointedDripstone.Thickness thickness = PointedDripstone.Thickness.MIDDLE;
+
+            if(realHeight >= 4) {
+                if(i == realHeight-1)
+                    thickness = PointedDripstone.Thickness.TIP;
+                if(i == realHeight-2)
+                    thickness = PointedDripstone.Thickness.FRUSTUM;
+                if(i == 0)
+                    thickness = PointedDripstone.Thickness.BASE;
+            }else if(realHeight >= 3) {
+                if(i == realHeight-1)
+                    thickness = PointedDripstone.Thickness.TIP;
+                if(i == realHeight-2)
+                    thickness = PointedDripstone.Thickness.FRUSTUM;
+                if(i == 0)
+                    thickness = PointedDripstone.Thickness.BASE;
+            }else if(realHeight >= 2) {
+                thickness = PointedDripstone.Thickness.TIP;
+                if(i == 0)
+                    thickness = PointedDripstone.Thickness.FRUSTUM;
+            }else {
+                thickness = PointedDripstone.Thickness.TIP;
+            }
+
+            PointedDripstone dripstone = (PointedDripstone) Bukkit.createBlockData(Material.POINTED_DRIPSTONE);
+            dripstone.setVerticalDirection(BlockFace.UP);
+            dripstone.setThickness(thickness);
+            base.getRelative(0, i, 0).setBlockData(dripstone);
+        }
+    }
+
+    public static void downLCaveVines(int height, SimpleBlock base) {
+        int realHeight = 0;
+        while(!base.getRelative(0,-realHeight,0).getType().isSolid() && height > 0) {
+            realHeight++;
+            height--;
+        }
+        if(base.getRelative(0,-realHeight,0).getType().isSolid())
+            realHeight--;
+
+        if(realHeight <= 0) return;
+
+        for(int i = realHeight; i > 0; i--) {
+            CaveVinesPlant vines = (CaveVinesPlant) Bukkit.createBlockData(i == 1 ? Material.CAVE_VINES : Material.CAVE_VINES_PLANT);
+            vines.setBerries(new Random().nextInt(3) == 0);
+            base.getRelative(0, -(realHeight - i), 0).lsetBlockData(vines);
+        }
+    }
+
+    private static final HashMap<String, Material> deepslateMap = new HashMap<>();
+    public static Material deepSlateVersion(Material target) {
+        Material mat = deepslateMap.get("DEEPSLATE_"+target.toString());
+
+        if(mat == null) {
+            mat =  Material.getMaterial("DEEPSLATE_"+ target);
+        }
+        if(mat == null)
+            return target;
+        else {
+            deepslateMap.put("DEEPSLATE_"+ target, mat);
+            return mat;
+        }
+    }
+
 }

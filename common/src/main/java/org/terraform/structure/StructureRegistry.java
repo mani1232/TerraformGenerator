@@ -12,6 +12,8 @@ import org.terraform.structure.monument.MonumentPopulator;
 import org.terraform.structure.pillager.mansion.MansionPopulator;
 import org.terraform.structure.pillager.outpost.OutpostPopulator;
 import org.terraform.structure.pyramid.PyramidPopulator;
+import org.terraform.structure.small.DesertWellPopulator;
+import org.terraform.structure.small.WitchHutPopulator;
 import org.terraform.structure.small.buriedtreasure.BuriedTreasurePopulator;
 import org.terraform.structure.small.dungeon.SmallDungeonPopulator;
 import org.terraform.structure.small.igloo.IglooPopulator;
@@ -19,9 +21,11 @@ import org.terraform.structure.small.ruinedportal.RuinedPortalPopulator;
 import org.terraform.structure.small.shipwreck.ShipwreckPopulator;
 import org.terraform.structure.stronghold.StrongholdPopulator;
 import org.terraform.structure.trailruins.TrailRuinsPopulator;
+import org.terraform.structure.trialchamber.TrialChamberPopulator;
 import org.terraform.structure.village.VillagePopulator;
 import org.terraform.structure.villagehouse.VillageHousePopulator;
 import org.terraform.structure.warmoceanruins.WarmOceanRuinsPopulator;
+import org.terraform.utils.version.Version;
 
 import java.util.ArrayList;
 import java.util.Collection;
@@ -29,6 +33,7 @@ import java.util.EnumMap;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Map.Entry;
+import java.util.Objects;
 import java.util.Random;
 
 public class StructureRegistry {
@@ -53,6 +58,8 @@ public class StructureRegistry {
         registerStructure(StructureType.MEGA_DUNGEON, new StrongholdPopulator());
         registerStructure(StructureType.MEGA_DUNGEON, new MansionPopulator());
         registerStructure(StructureType.MEGA_DUNGEON, new AncientCityPopulator());
+        if(Version.isAtLeast(21))
+            registerStructure(StructureType.MEGA_DUNGEON, new TrialChamberPopulator());
 
         registerStructure(StructureType.LARGE_CAVE, new LargeCavePopulator());
 
@@ -67,10 +74,8 @@ public class StructureRegistry {
         registerStructure(StructureType.SMALL, new BuriedTreasurePopulator());
         registerStructure(StructureType.SMALL, new RuinedPortalPopulator());
         registerStructure(StructureType.SMALL, new IglooPopulator());
-
-        //These aren't really "structures" now, they're instead spawned by the biomes.
-        //registerStructure(StructureType.SMALL, new WitchHutPopulator());
-        //registerStructure(StructureType.SMALL, new DesertWellPopulator());
+        registerStructure(StructureType.SMALL, new DesertWellPopulator());
+        registerStructure(StructureType.SMALL, new WitchHutPopulator());
     }
 
     /**
@@ -179,8 +184,8 @@ public class StructureRegistry {
         if (pop instanceof SingleMegaChunkStructurePopulator) {
             SingleMegaChunkStructurePopulator[] pops = {(SingleMegaChunkStructurePopulator) pop};
             if (largeStructureRegistry.containsKey(type)) {
-                StructurePopulator[] existing = largeStructureRegistry.get(type);
-                StructurePopulator[] old = pops;
+                SingleMegaChunkStructurePopulator[] existing = largeStructureRegistry.get(type);
+                SingleMegaChunkStructurePopulator[] old = pops;
                 pops = new SingleMegaChunkStructurePopulator[existing.length + 1];
                 System.arraycopy(existing, 0, pops, 0, existing.length);
                 System.arraycopy(old, 0, pops, existing.length, 1);
@@ -229,7 +234,7 @@ public class StructureRegistry {
 
 	    @Override
 	    public int hashCode() {
-	        return tw.hashCode() ^ (mc.getX() + mc.getZ() * 31);
+	        return Objects.hash(tw.hashCode(),mc.getX(), mc.getZ());
 	    }
 
 	    @Override

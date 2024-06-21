@@ -24,7 +24,6 @@ import org.terraform.utils.noise.FastNoise.NoiseType;
 import org.terraform.utils.noise.NoiseCacheHandler.NoiseCacheEntry;
 import org.terraform.utils.version.BeeHiveSpawner;
 import org.terraform.utils.version.OneOneNineBlockHandler;
-import org.terraform.utils.version.OneOneSevenBlockHandler;
 import org.terraform.utils.version.OneTwentyBlockHandler;
 import org.terraform.utils.version.Version;
 
@@ -115,7 +114,7 @@ public class FractalTreeBuilder {
                         .setLengthDecrement(0.3f)
                         .setMaxDepth(2)
                         .setFractalLeaves(new FractalLeaves()
-                        		.setMaterial(OneOneSevenBlockHandler.AZALEA_LEAVES, OneOneSevenBlockHandler.FLOWERING_AZALEA_LEAVES)
+                        		.setMaterial(Material.AZALEA_LEAVES, Material.FLOWERING_AZALEA_LEAVES)
                         		.setRadiusX(3)
                         		.setRadiusZ(3)
                         		.setRadiusY(1.5f)
@@ -374,17 +373,6 @@ public class FractalTreeBuilder {
                         .setLengthDecrement(1)
                         .setHeightVariation(1);
                 break;
-            case SWAMP_BOTTOM:
-                this.setBaseHeight(1)
-                        .setBaseThickness(3)
-                        .setThicknessDecrement(0.5f)
-                        .setMaxDepth(3)
-                        .setTrunkType(OneOneNineBlockHandler.MANGROVE_ROOTS)
-                        .setLengthDecrement(-2f)
-                        .setMaxBend(-Math.PI / 6)
-                        .setMinBend(-Math.PI / 3)
-                        .setFractalLeaves(new FractalLeaves().setRadius(0).setMaterial(OneOneNineBlockHandler.MANGROVE_LEAVES));
-                break;
             case SWAMP_TOP:
                 this.setBaseHeight(8)
                         .setBaseThickness(3)
@@ -447,19 +435,19 @@ public class FractalTreeBuilder {
                         .setMinPitch(0)
                         .setFractalLeaves(new FractalLeaves().setRadius(6, 2, 6).setMaterial(Material.DARK_OAK_LEAVES).setOffsetY(1));
                 break;
-            case DARK_OAK_BIG_BOTTOM:
-                this.setBaseHeight(4)
-                        .setBaseThickness(4)
-                        .setThicknessDecrement(0f)
-                        .setMaxDepth(3)
-                        .setTrunkType(Material.DARK_OAK_WOOD)
-                        .setLengthDecrement(-1)
-                        .setHeightVariation(1)
-                        .setFractalThreshold(5)
-                        .setMaxBend(2.3 * Math.PI / 6)
-                        .setMinBend(2.0 * Math.PI / 6)
-                        .setFractalLeaves(new FractalLeaves().setRadius(0).setMaterial(Material.DARK_OAK_LEAVES));
-                break;
+//            case DARK_OAK_BIG_BOTTOM:
+//                this.setBaseHeight(4)
+//                        .setBaseThickness(4)
+//                        .setThicknessDecrement(0f)
+//                        .setMaxDepth(3)
+//                        .setTrunkType(Material.DARK_OAK_WOOD)
+//                        .setLengthDecrement(-1)
+//                        .setHeightVariation(1)
+//                        .setFractalThreshold(5)
+//                        .setMaxBend(2.3 * Math.PI / 6)
+//                        .setMinBend(2.0 * Math.PI / 6)
+//                        .setFractalLeaves(new FractalLeaves().setRadius(0).setMaterial(Material.DARK_OAK_LEAVES));
+//                break;
             case FROZEN_TREE_BIG:
                 this.setBaseHeight(4)
                         .setBaseThickness(4)
@@ -868,7 +856,7 @@ public class FractalTreeBuilder {
                             + Math.pow(z, 2) / Math.pow(rZ, 2);
 
                     if (equationResult <= 1 + noiseMultiplier * noiseGen.GetNoise(rel.getX(), rel.getY(), rel.getZ())) {
-                        rel.setType(type);
+                        rel.rsetType(BlockUtils.replacableByTrees, type);
                         if(Tag.WALLS.isTagged(type))
                         	BlockUtils.correctMultifacingData(rel);
                         if (coralDecoration) {
@@ -950,14 +938,14 @@ public class FractalTreeBuilder {
         }
         for (int i = 1; i <= GenUtils.randInt(min, max); i++) {
             if (!block.getRelative(0, -i, 0).getType().isSolid())
-                block.getRelative(0, -i, 0).lsetBlockData(type);
+                block.getRelative(0, -i, 0).rsetBlockData(BlockUtils.replacableByTrees,type);
             else
                 break;
         }
 
         //Log for good measure, as well as some surrounding leaves.
         if (Tag.LEAVES.isTagged(material))
-            block.setType(this.trunkType);
+            block.rsetType(BlockUtils.replacableByTrees,this.trunkType);
         for (BlockFace face : BlockUtils.directBlockFaces) {
         	material = fractalLeaves.material[rand.nextInt(fractalLeaves.material.length)];
         	type = Bukkit.createBlockData(material);
@@ -966,9 +954,9 @@ public class FractalTreeBuilder {
             	leaf.setDistance(1);
         	}
             
-            block.getRelative(face).lsetBlockData(type);
+            block.getRelative(face).rsetBlockData(BlockUtils.replacableByTrees,type);
         }
-        block.getRelative(0, 1, 0).lsetBlockData(type);
+        block.getRelative(0, 1, 0).rsetBlockData(BlockUtils.replacableByTrees, type);
     }
 
     public FractalTreeBuilder setSnowyLeaves(boolean snowy) {

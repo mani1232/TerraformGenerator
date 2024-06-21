@@ -1,5 +1,7 @@
 package org.terraform.main;
 
+import com.google.common.cache.CacheBuilder;
+import com.google.common.cache.CacheLoader;
 import org.bukkit.Bukkit;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
@@ -7,6 +9,7 @@ import org.bukkit.event.world.WorldInitEvent;
 import org.bukkit.event.world.WorldLoadEvent;
 import org.bukkit.generator.ChunkGenerator;
 import org.bukkit.plugin.java.JavaPlugin;
+import org.jetbrains.annotations.NotNull;
 import org.terraform.biome.BiomeBank;
 import org.terraform.coregen.ChunkCache;
 import org.terraform.coregen.ChunkCacheLoader;
@@ -31,10 +34,6 @@ import org.terraform.utils.bstats.TerraformGeneratorMetricsHandler;
 import org.terraform.utils.version.Version;
 import org.terraform.watchdog.TfgWatchdogSuppressant;
 
-import com.google.common.cache.CacheBuilder;
-import com.google.common.cache.CacheLoader;
-import space.arim.morepaperlib.MorePaperLib;
-
 import java.lang.reflect.Field;
 import java.lang.reflect.InvocationTargetException;
 import java.util.EnumSet;
@@ -44,14 +43,14 @@ import java.util.Set;
 
 public class TerraformGeneratorPlugin extends JavaPlugin implements Listener {
 
-	public static TLogger logger;
+    public static TLogger logger;
     public static final Set<String> INJECTED_WORLDS = new HashSet<>();
     public static final PrivateFieldHandler privateFieldHandler;
     public static NMSInjectorAbstract injector;
     private static TerraformGeneratorPlugin instance;
     public static TfgWatchdogSuppressant watchdogSuppressant;
     public MorePaperLib morePaperLib;
-
+    
     private ConfigLoader config;
     private LanguageManager lang;
 
@@ -70,15 +69,15 @@ public class TerraformGeneratorPlugin extends JavaPlugin implements Listener {
         return instance;
     }
 
-	@Override
+    @Override
     public void onEnable() {
         morePaperLib = new MorePaperLib(this);
         super.onEnable();
-		GenUtils.initGenUtils();
-		BlockUtils.initBlockUtils();
+        GenUtils.initGenUtils();
+        BlockUtils.initBlockUtils();
         instance = this;
-		config = new ConfigLoader(this);
-		lang = new LanguageManager(this);
+        config = new ConfigLoader(this);
+        lang = new LanguageManager(this);
         TConfigOption.loadValues(config);
 
         //Initiate the height map flat radius value
@@ -86,18 +85,18 @@ public class TerraformGeneratorPlugin extends JavaPlugin implements Listener {
         if(HeightMap.spawnFlatRadiusSquared > 0) HeightMap.spawnFlatRadiusSquared *= HeightMap.spawnFlatRadiusSquared;
 
         BiomeBank.initSinglesConfig(); //Initiates single biome modes.
-        
+
         //Initialize chunk cache based on config size
-        TerraformGenerator.CHUNK_CACHE = 
-        		CacheBuilder.newBuilder()
-        		.maximumSize(TConfigOption.DEVSTUFF_CHUNKCACHE_SIZE.getInt()).build(new ChunkCacheLoader());
-        
+        TerraformGenerator.CHUNK_CACHE =
+                CacheBuilder.newBuilder()
+                        .maximumSize(TConfigOption.DEVSTUFF_CHUNKCACHE_SIZE.getInt()).build(new ChunkCacheLoader());
+
         //Initialize biome query cache based on config size
         GenUtils.biomeQueryCache = CacheBuilder.newBuilder()
                 .maximumSize(TConfigOption.DEVSTUFF_CHUNKBIOMES_SIZE.getInt())
                 .build(new CacheLoader<>() {
                     @Override
-                    public EnumSet<BiomeBank> load(ChunkCache key) {
+                    public @NotNull EnumSet<BiomeBank> load(@NotNull ChunkCache key) {
                         EnumSet<BiomeBank> banks = EnumSet.noneOf(BiomeBank.class);
                         int gridX = key.chunkX * 16;
                         int gridZ = key.chunkZ * 16;
@@ -110,12 +109,12 @@ public class TerraformGeneratorPlugin extends JavaPlugin implements Listener {
                         return banks;
                     }
                 });
-        
+
         LangOpt.init(this);
         logger = new TLogger();
         watchdogSuppressant = new TfgWatchdogSuppressant();
         new TerraformGeneratorMetricsHandler(this); //bStats
-        
+
         TerraformGenerator.updateSeaLevelFromConfig();
         new TerraformCommandManager(this, "terraform", "terra");
         Bukkit.getPluginManager().registerEvents(this, this);
@@ -123,19 +122,18 @@ public class TerraformGeneratorPlugin extends JavaPlugin implements Listener {
         String version = Version.getVersionPackage();
         logger.stdout("Detected version: " + version + ", number: " + Version.DOUBLE);
         try {
-			injector = (NMSInjectorAbstract) Class.forName("org.terraform." + version + ".NMSInjector").getDeclaredConstructor().newInstance();
-
+            injector = Version.SupportedVersion.getInjector();
+            if(injector == null) throw new ClassNotFoundException();
         } catch (ClassNotFoundException e) {
             e.printStackTrace();
             logger.stdout("&cNo support for this version has been made yet!");
-        } catch (InstantiationException | IllegalAccessException 
-        		| IllegalArgumentException | InvocationTargetException 
-        		| NoSuchMethodException | SecurityException e) {
+        } catch (InstantiationException | IllegalAccessException
+                 | IllegalArgumentException | InvocationTargetException
+                 | NoSuchMethodException | SecurityException e) {
             e.printStackTrace();
             logger.stdout("&cSomething went wrong initiating the injector!");
-
         }
-        
+
         injector.startupTasks();
 
         if (TConfigOption.MISC_SAPLING_CUSTOM_TREES_ENABLED.getBoolean()) {
@@ -145,16 +143,15 @@ public class TerraformGeneratorPlugin extends JavaPlugin implements Listener {
         StructureRegistry.init();
     }
 
-    
+
     @Override
     public void onDisable() {
-    	//This is already done in NativeGeneratorPatcherPopulator World Unload Event.
-    	//NativeGeneratorPatcherPopulator.flushChanges();
+        //This is already done in NativeGeneratorPatcherPopulator World Unload Event.
+        //NativeGeneratorPatcherPopulator.flushChanges();
     }
-    
+
     /**
      * Legacy thing. Consider removal.
-     * @param event
      * @deprecated
      */
     @Deprecated
@@ -188,16 +185,17 @@ public class TerraformGeneratorPlugin extends JavaPlugin implements Listener {
         }
     }
 
+    @SuppressWarnings("unused")
     @EventHandler
     public void onWorldInit(WorldInitEvent event) {
         if (event.getWorld().getGenerator() instanceof TerraformGenerator) {
             logger.stdout("Detected world: " + event.getWorld().getName() + ", commencing injection... ");
+            TerraformWorld tw = TerraformWorld.forceOverrideSeed(event.getWorld());
             if (injector.attemptInject(event.getWorld())) {
                 INJECTED_WORLDS.add(event.getWorld().getName());
-                TerraformWorld tw = TerraformWorld.get(event.getWorld());
                 tw.minY = injector.getMinY();
                 tw.maxY = injector.getMaxY();
-                
+
                 logger.stdout("&aInjection success! Proceeding with generation.");
 
             } else {
@@ -207,17 +205,17 @@ public class TerraformGeneratorPlugin extends JavaPlugin implements Listener {
     }
 
     @Override
-    public ChunkGenerator getDefaultWorldGenerator(String worldName, String id) {
+    public ChunkGenerator getDefaultWorldGenerator(@NotNull String worldName, String id) {
         return new TerraformGenerator();
     }
 
-	public ConfigLoader getConfigLoader() {
-		return config;
-	}
+    public ConfigLoader getConfigLoader() {
+        return config;
+    }
 
-	public LanguageManager getLang() {
-		// TODO Auto-generated method stub
-		return lang;
-	}
+    public LanguageManager getLang() {
+        // TODO Auto-generated method stub
+        return lang;
+    }
 
 }

@@ -5,6 +5,7 @@ import org.bukkit.Material;
 import org.bukkit.block.Block;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
+import org.terraform.command.contants.FilenameArgument;
 import org.terraform.command.contants.InvalidArgumentException;
 import org.terraform.command.contants.TerraCommand;
 import org.terraform.main.TerraformGeneratorPlugin;
@@ -19,11 +20,12 @@ public class SchematicSaveCommand extends TerraCommand {
 
     public SchematicSaveCommand(TerraformGeneratorPlugin plugin, String... aliases) {
         super(plugin, aliases);
+        this.parameters.add(new FilenameArgument("schem-name", false));
     }
 
     @Override
     public String getDefaultDescription() {
-        return "Saves a schematic";
+        return "Saves a schematic in the schematics folder in plugins/TerraformGenerator";
     }
 
     @Override
@@ -42,6 +44,14 @@ public class SchematicSaveCommand extends TerraCommand {
             throws InvalidArgumentException {
         Player p = (Player) sender;
         TerraRegion rg = SchematicListener.rgs.get(p.getUniqueId());
+
+        if (args.size() != 1) {
+            p.sendMessage(ChatColor.RED + "Usage: /terra save [schematic name]");
+            return;
+        }
+
+        String name = (String) this.parseArguments(sender, args).get(0);
+
         if (rg == null || !rg.isComplete()) {
             p.sendMessage(ChatColor.RED + "Selection not ready.");
             return;
@@ -55,9 +65,10 @@ public class SchematicSaveCommand extends TerraCommand {
                 b.setType(Material.AIR);
             s.registerBlock(b);
         }
+
         try {
-            s.export("new-schematic-" + System.currentTimeMillis() + ".terra");
-            p.sendMessage(ChatColor.GREEN + "Saved.");
+            s.export(name + ".terra");
+            p.sendMessage(ChatColor.GREEN + "Schematic saved with name " + name);
         } catch (IOException e) {
             p.sendMessage(ChatColor.RED + "A problem occurred.");
             e.printStackTrace();

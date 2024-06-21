@@ -14,6 +14,7 @@ import org.bukkit.block.data.Rotatable;
 import org.bukkit.block.data.type.RedstoneWire;
 import org.bukkit.block.data.type.RedstoneWire.Connection;
 import org.bukkit.util.Vector;
+import org.terraform.command.contants.FilenameArgument;
 import org.terraform.coregen.BlockDataFixerAbstract;
 import org.terraform.data.SimpleBlock;
 import org.terraform.main.TerraformGeneratorPlugin;
@@ -22,6 +23,7 @@ import org.terraform.utils.version.Version;
 
 import java.io.BufferedWriter;
 import java.io.File;
+import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.IOException;
@@ -33,7 +35,10 @@ import java.util.Map.Entry;
 import java.util.Scanner;
 
 public class TerraSchematic {
-	public static HashMap<String, HashMap<Vector,BlockData>> cache = new HashMap<>();
+	public static final String SCHEMATIC_FOLDER = File.separator + "schematic";
+    public static HashMap<String, HashMap<Vector,BlockData>> cache = new HashMap<>();
+
+    private final File schematicFolder;
     public SchematicParser parser = new SchematicParser();
     HashMap<Vector, BlockData> data = new HashMap<>();
     SimpleBlock refPoint;
@@ -43,25 +48,24 @@ public class TerraSchematic {
     //North is always the default blockface.
     //
     public TerraSchematic(SimpleBlock vector) {
+        this.schematicFolder = new File(TerraformGeneratorPlugin.get().getDataFolder(), SCHEMATIC_FOLDER);
         this.refPoint = vector;
     }
 
     public TerraSchematic(Location loc) {
+        this.schematicFolder = new File(TerraformGeneratorPlugin.get().getDataFolder(), SCHEMATIC_FOLDER);
         this.refPoint = new SimpleBlock(loc);
     }
     
     public TerraSchematic clone(SimpleBlock refPoint) {
     	TerraSchematic clone = new TerraSchematic(refPoint);
     	clone.data = new HashMap<>();
-    	for(Entry<Vector, BlockData> entry:data.entrySet()) {
-    		clone.data.put(entry.getKey(),entry.getValue());
-    	}
+        clone.data.putAll(data);
     	clone.VERSION_VALUE = VERSION_VALUE;
     	return clone;
     }
 
     public static TerraSchematic load(String internalPath, SimpleBlock refPoint) throws FileNotFoundException {
-
     	//A new object gets created from here. If the path is in the cache,
     	//this object is NOT the one that gets returned. Instead, a clone is
     	//returned, with a new hashmap copy and a (broken) version number.
@@ -70,13 +74,28 @@ public class TerraSchematic {
         	schem.data = cache.get(internalPath);
         	return schem.clone(refPoint);
         }
-        
+
+        boolean wasInDataFolder = false;
         InputStream is = TerraformGeneratorPlugin.get().getClass().getResourceAsStream("/" + internalPath + ".terra");
-        @SuppressWarnings("resource")
+        if(is == null) {
+            //Try to lookup in the schematics folder
+            final File schematicFolder = new File(TerraformGeneratorPlugin.get().getDataFolder(), SCHEMATIC_FOLDER);
+            final File schematicFile = new File(schematicFolder, internalPath + ".terra");
+            try{
+                if(!schematicFile.getCanonicalPath().startsWith(schematicFolder.getCanonicalPath()))
+                    throw new IllegalArgumentException("Schematic name contained illegal characters (i.e. periods)");
+            }
+            catch(Exception e){
+                throw new IllegalArgumentException("Schematic name contained illegal characters (i.e. periods)");
+            }
+            is = new FileInputStream(schematicFile);
+            wasInDataFolder = true;
+        }
+
         Scanner sc = new Scanner(is);    //file to be scanned
 
         String line = sc.nextLine(); //First line is the schematic's version.
-        schem.VERSION_VALUE = Version.toVersionDouble(line);
+        schem.VERSION_VALUE = Double.parseDouble(line);
         
         while (sc.hasNextLine()) {
             line = sc.nextLine();
@@ -103,8 +122,8 @@ public class TerraSchematic {
         }
         sc.close();
         
-        //Cache all small schematics
-        if(schem.data.size() < 100)
+        //Cache all small schematics that are not in the data folder
+        if(schem.data.size() < 100 && !wasInDataFolder)
         	cache.put(internalPath, schem.data);
         return schem;
     }
@@ -136,8 +155,7 @@ public class TerraSchematic {
             }
 
             if (face != BlockFace.NORTH) {
-                if (bd instanceof Orientable) {
-                    Orientable o = (Orientable) bd;
+                if (bd instanceof Orientable o) {
                     if (face == BlockFace.EAST || face == BlockFace.WEST) {
                         if (o.getAxis() == Axis.X) {
                             o.setAxis(Axis.Z);
@@ -145,8 +163,7 @@ public class TerraSchematic {
                             o.setAxis(Axis.X);
                         }
                     }
-                } else if (bd instanceof Rotatable) {
-                    Rotatable r = (Rotatable) bd;
+                } else if (bd instanceof Rotatable r) {
                     if (face == BlockFace.SOUTH) {
                         r.setRotation(r.getRotation().getOppositeFace());
                     } else if (face == BlockFace.EAST) {
@@ -155,8 +172,7 @@ public class TerraSchematic {
                         r.setRotation(BlockUtils.getAdjacentFaces(r.getRotation())[1]);
                     }
                 } 
-                else if (bd instanceof Directional) {
-                    Directional r = (Directional) bd;
+                else if (bd instanceof Directional r) {
                     if (BlockUtils.isDirectBlockFace(r.getFacing()))
                         if (face == BlockFace.SOUTH) {
                         	//South means flip it to opposite face
@@ -175,9 +191,8 @@ public class TerraSchematic {
                 else if (bd instanceof MultipleFacing) {
                     multiFace.add(pos);
                 }
-                else if (bd instanceof RedstoneWire) {
-                	RedstoneWire w = (RedstoneWire) bd;
-                	RedstoneWire newData = (RedstoneWire) Bukkit.createBlockData(Material.REDSTONE_WIRE);
+                else if (bd instanceof RedstoneWire w) {
+                    RedstoneWire newData = (RedstoneWire) Bukkit.createBlockData(Material.REDSTONE_WIRE);
                 	newData.setPower(w.getPower());
                 	for(BlockFace wireFace:w.getAllowedFaces())
                 	{
@@ -226,22 +241,35 @@ public class TerraSchematic {
     }
 
     public void export(String path) throws IOException {
-        File fout = new File(path);
-        //fout.getParentFile().mkdirs();
-        FileOutputStream fos = new FileOutputStream(fout);
-        BufferedWriter bw = new BufferedWriter(new OutputStreamWriter(fos));
-        
-        //Append version header
-        bw.write(Version.DOUBLE+"");
-        bw.newLine();
-        
-        for (Entry<Vector, BlockData> entry : data.entrySet()) {
-            String v = entry.getKey().getBlockX() + "," + entry.getKey().getBlockY() + ',' + entry.getKey().getBlockZ();
-            bw.write(v + ":@:" + entry.getValue().getAsString());
-            bw.newLine();
+        //Validate it again.
+        String validation = new FilenameArgument("schem-name", false).validate(null,path);
+        if(!validation.equals(""))
+            throw new IOException(validation);
+
+        File outputFile = new File(schematicFolder, path);
+
+        if(!outputFile.getParentFile().exists()) {
+            outputFile.getParentFile().mkdirs();
         }
 
-        bw.close();
+        if(!outputFile.exists()) {
+            outputFile.createNewFile();
+        }
+
+        FileOutputStream outputStream = new FileOutputStream(outputFile);
+        BufferedWriter bufferedWriter = new BufferedWriter(new OutputStreamWriter(outputStream));
+        
+        //Append version header
+        bufferedWriter.write(Version.DOUBLE+"");
+        bufferedWriter.newLine();
+        
+        for (Entry<Vector, BlockData> entry : data.entrySet()) {
+            String vector = entry.getKey().getBlockX() + "," + entry.getKey().getBlockY() + ',' + entry.getKey().getBlockZ();
+            bufferedWriter.write(vector + ":@:" + entry.getValue().getAsString());
+            bufferedWriter.newLine();
+        }
+
+        bufferedWriter.close();
     }
 
     /**

@@ -7,6 +7,7 @@ import org.bukkit.block.data.Rotatable;
 import org.terraform.biome.BiomeBank;
 import org.terraform.biome.BiomeHandler;
 import org.terraform.coregen.populatordata.PopulatorDataAbstract;
+import org.terraform.data.SimpleBlock;
 import org.terraform.data.SimpleLocation;
 import org.terraform.data.TerraformWorld;
 import org.terraform.main.config.TConfigOption;
@@ -43,39 +44,33 @@ public class DarkForestHandler extends BiomeHandler {
     }
 
     @Override
-    public void populateSmallItems(TerraformWorld tw, Random random, PopulatorDataAbstract data) {
+    public void populateSmallItems(TerraformWorld tw, Random random, int rawX, int surfaceY, int rawZ, PopulatorDataAbstract data) {
       
         boolean spawnHeads = TConfigOption.BIOME_DARK_FOREST_SPAWN_HEADS.getBoolean() 
         		&& GenUtils.chance(random, 1, 100);
 
-        //Small decorations
-        for (int x = data.getChunkX() * 16; x < data.getChunkX() * 16 + 16; x++) {
-            for (int z = data.getChunkZ() * 16; z < data.getChunkZ() * 16 + 16; z++) {
-                int y = GenUtils.getHighestGround(data, x, z);
-                if (data.getType(x, y, z) == Material.GRASS_BLOCK) {
-                    if (GenUtils.chance(random, 1, 10)) {
-                        if (data.getType(x, y + 1, z) != Material.AIR) continue;
-                        //Only grass and mushrooms
-                        data.setType(x, y + 1, z, Material.GRASS);
-                        if (random.nextInt(3) != 0) {
-                            BlockUtils.setDoublePlant(data, x, y + 1, z, Material.TALL_GRASS);
-                        } else {
-                            Material mushroom = Material.RED_MUSHROOM;
-                            if (random.nextBoolean())
-                                mushroom = Material.BROWN_MUSHROOM;
-                            data.setType(x, y + 1, z, mushroom);
-                        }
-                    }
+        if (data.getType(rawX, surfaceY, rawZ) == Material.GRASS_BLOCK) {
+            if (GenUtils.chance(random, 1, 10)) {
+                if (data.getType(rawX, surfaceY + 1, rawZ) != Material.AIR) return;
+                //Only grass and mushrooms
+                data.setType(rawX, surfaceY + 1, rawZ, Material.GRASS);
+                if (random.nextInt(3) != 0) {
+                    BlockUtils.setDoublePlant(data, rawX, surfaceY + 1, rawZ, Material.TALL_GRASS);
+                } else {
+                    Material mushroom = Material.RED_MUSHROOM;
+                    if (random.nextBoolean())
+                        mushroom = Material.BROWN_MUSHROOM;
+                    data.setType(rawX, surfaceY + 1, rawZ, mushroom);
                 }
+            }
+        }
 
-                if (spawnHeads && GenUtils.chance(random, 1, 50)) {
-                    if (BlockUtils.isDirtLike(data.getType(x, y, z))) {
-                        Rotatable skull = (Rotatable) Bukkit.createBlockData(Material.PLAYER_HEAD);
-                        skull.setRotation(BlockUtils.getXZPlaneBlockFace(random));
+        if (spawnHeads && GenUtils.chance(random, 1, 50)) {
+            if (BlockUtils.isDirtLike(data.getType(rawX, surfaceY, rawZ))) {
+                Rotatable skull = (Rotatable) Bukkit.createBlockData(Material.PLAYER_HEAD);
+                skull.setRotation(BlockUtils.getXZPlaneBlockFace(random));
 
-                        data.setBlockData(x, y + 1, z, skull);
-                    }
-                }
+                data.setBlockData(rawX, surfaceY + 1, rawZ, skull);
             }
         }
 
@@ -83,7 +78,7 @@ public class DarkForestHandler extends BiomeHandler {
 
 	@Override
 	public void populateLargeItems(TerraformWorld tw, Random random, PopulatorDataAbstract data) {
-		SimpleLocation[] bigTrees = GenUtils.randomObjectPositions(tw, data.getChunkX(), data.getChunkZ(), 32);
+		SimpleLocation[] bigTrees = GenUtils.randomObjectPositions(tw, data.getChunkX(), data.getChunkZ(), 20);
 		SimpleLocation[] trees = GenUtils.randomObjectPositions(tw, data.getChunkX(), data.getChunkZ(), 10);
 		SimpleLocation[] smallDecorations = GenUtils.randomObjectPositions(tw, data.getChunkX(), data.getChunkZ(), 7);
 		
@@ -95,21 +90,14 @@ public class DarkForestHandler extends BiomeHandler {
                     BlockUtils.isDirtLike(data.getType(sLoc.getX(),sLoc.getY(),sLoc.getZ()))) {
                 if (GenUtils.chance(random, 2, 10)) {
                 	int choice = random.nextInt(3);
-                	FractalTypes.Mushroom type;
-                	switch(choice) {
-                	case 0:
-                		type = FractalTypes.Mushroom.GIANT_RED_MUSHROOM;
-                		break;
-                	case 1:
-                		type = FractalTypes.Mushroom.GIANT_BROWN_MUSHROOM;
-                		break;
-                	default:
-                		type = FractalTypes.Mushroom.GIANT_BROWN_FUNNEL_MUSHROOM;
-                		break;
-                	}
+                	FractalTypes.Mushroom type = switch(choice) {
+                        case 0 -> FractalTypes.Mushroom.GIANT_RED_MUSHROOM;
+                        case 1 -> FractalTypes.Mushroom.GIANT_BROWN_MUSHROOM;
+                        default -> FractalTypes.Mushroom.GIANT_BROWN_FUNNEL_MUSHROOM;
+                    };
                     new MushroomBuilder(type).build(tw, data, sLoc.getX(),sLoc.getY(),sLoc.getZ());
                 } else if (TConfigOption.TREES_DARK_FOREST_BIG_ENABLED.getBoolean()) {
-                    TreeDB.spawnBigDarkOakTree(tw, data, sLoc.getX(),sLoc.getY(),sLoc.getZ());
+                    FractalTypes.Tree.DARK_OAK_BIG_TOP.build(tw, new SimpleBlock(data,sLoc));
                 }
             }
         }
@@ -120,8 +108,8 @@ public class DarkForestHandler extends BiomeHandler {
             sLoc.setY(treeY);
             if (data.getBiome(sLoc.getX(), sLoc.getZ()) == getBiome() &&
                     BlockUtils.isDirtLike(data.getType(sLoc.getX(),sLoc.getY(),sLoc.getZ()))) {
-            	new FractalTreeBuilder(FractalTypes.Tree.DARK_OAK_SMALL)
-                .build(tw, data, sLoc.getX(),sLoc.getY()+1,sLoc.getZ());
+            	//new FractalTreeBuilder(FractalTypes.Tree.DARK_OAK_SMALL)
+                FractalTypes.Tree.DARK_OAK_SMALL.build(tw, new SimpleBlock(data,sLoc));
             }
         }
 

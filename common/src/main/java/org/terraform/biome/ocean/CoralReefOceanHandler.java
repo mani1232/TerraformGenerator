@@ -44,26 +44,18 @@ public class CoralReefOceanHandler extends AbstractOceanHandler {
     }
 
     @Override
-    public void populateSmallItems(TerraformWorld world, Random random, PopulatorDataAbstract data) {
+    public void populateSmallItems(TerraformWorld world, Random random, int rawX, int surfaceY, int rawZ, PopulatorDataAbstract data) {
+        //Set ground near sea level to sand
+        if(surfaceY >= TerraformGenerator.seaLevel - 2) {
+            data.setType(rawX, surfaceY, rawZ, Material.SAND);
+        }else if(surfaceY >= TerraformGenerator.seaLevel - 4) {
+            if(random.nextBoolean())
+                data.setType(rawX, surfaceY, rawZ, Material.SAND);
+        }
 
-        for (int x = data.getChunkX() * 16; x < data.getChunkX() * 16 + 16; x++) {
-            for (int z = data.getChunkZ() * 16; z < data.getChunkZ() * 16 + 16; z++) {
-                int y = GenUtils.getHighestGround(data, x, z);
-                if (data.getBiome(x, z) != getBiome()) continue;
-
-                //Set ground near sea level to sand
-                if(y >= TerraformGenerator.seaLevel - 2) {
-                	data.setType(x, y, z, Material.SAND);
-                }else if(y >= TerraformGenerator.seaLevel - 4) {
-                	if(random.nextBoolean())
-                    	data.setType(x, y, z, Material.SAND);
-                }
-                
-                if (!BlockUtils.isStoneLike(data.getType(x, y, z))) continue;
-                if (GenUtils.chance(random, 10, 100)) { //SEA GRASS/KELP
-                    CoralGenerator.generateKelpGrowth(data, x, y + 1, z);
-                }
-            }
+        if (!BlockUtils.isStoneLike(data.getType(rawX, surfaceY, rawZ))) return;
+        if (GenUtils.chance(random, 10, 100)) { //SEA GRASS/KELP
+            CoralGenerator.generateKelpGrowth(data, rawX, surfaceY + 1, rawZ);
         }
     }
 
@@ -74,6 +66,7 @@ public class CoralReefOceanHandler extends AbstractOceanHandler {
         
         for (SimpleLocation sLoc : largeCorals) {
         	int coralY = GenUtils.getHighestGround(data, sLoc.getX(),sLoc.getZ());
+            if(coralY >= TerraformGenerator.seaLevel) continue;
             sLoc.setY(coralY);
             if(data.getBiome(sLoc.getX(),sLoc.getZ()) == getBiome()) {
             	TreeDB.spawnRandomGiantCoral(tw, data, sLoc.getX(), sLoc.getY(), sLoc.getZ());
@@ -86,6 +79,7 @@ public class CoralReefOceanHandler extends AbstractOceanHandler {
         
         for (SimpleLocation sLoc : smallCorals) {
         	int coralY = GenUtils.getHighestGround(data, sLoc.getX(),sLoc.getZ());
+            if(coralY >= TerraformGenerator.seaLevel) continue;
             sLoc.setY(coralY);
             if(data.getBiome(sLoc.getX(),sLoc.getZ()) == getBiome()
             		&& !data.getType(sLoc.getX(),sLoc.getY()+1,sLoc.getZ()).isSolid()) {
