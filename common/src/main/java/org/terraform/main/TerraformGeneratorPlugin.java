@@ -33,6 +33,7 @@ import org.terraform.utils.GenUtils;
 import org.terraform.utils.bstats.TerraformGeneratorMetricsHandler;
 import org.terraform.utils.version.Version;
 import org.terraform.watchdog.TfgWatchdogSuppressant;
+import space.arim.morepaperlib.MorePaperLib;
 
 import java.lang.reflect.Field;
 import java.lang.reflect.InvocationTargetException;

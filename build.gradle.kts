@@ -15,6 +15,7 @@ subprojects {
         //mavenLocal()
         mavenCentral()
         maven("https://repo.codemc.io/repository/nms/")
+        maven("https://mvn-repo.arim.space/lesser-gpl3/")
         //maven("https://libraries.minecraft.net/minecraft-server")
         maven("https://papermc.io/repo/repository/maven-public/")
     }
